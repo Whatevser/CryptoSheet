@@ -1,0 +1,5 @@
+# never commit secrets
+*.env
+relay.env
+.clasp.json
+.DS_Store
