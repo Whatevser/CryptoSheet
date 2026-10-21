@@ -1,4 +1,4 @@
-// Exchange relay for Google Sheets (Binance, KuCoin, CoinEx).
+// Exchange relay for Google Sheets (Binance, KuCoin).
 // Google Sheets -> this relay (HTTPS) -> your proxy -> exchange.
 // Runs on Deno Deploy (paste into a Playground) or on your own box: `deno run -A relay.ts` (PORT env, default 8000).
 //
@@ -21,7 +21,7 @@ if (CONFIG_ERROR) console.error("CONFIG ERROR: " + CONFIG_ERROR);
 const HOSTS = new Set([
   "api.binance.com", "api1.binance.com", "api2.binance.com", "api3.binance.com",
   "api4.binance.com", "fapi.binance.com", "dapi.binance.com",
-  "api.kucoin.com", "api.coinex.com",
+  "api.kucoin.com",
   "bank.gov.ua", "p2p.binance.com",
 ]);
 
@@ -42,10 +42,6 @@ function slim(host: string, path: string, j: any): any {
     if (host === "api.kucoin.com" && path.endsWith("/market/allTickers")) {
       // deno-lint-ignore no-explicit-any
       return { code: j.code, msg: j.msg, data: { ticker: (j.data?.ticker ?? []).map((t: any) => ({ symbol: t.symbol, last: t.last })) } };
-    }
-    if (host === "api.coinex.com" && path.endsWith("/spot/ticker")) {
-      // deno-lint-ignore no-explicit-any
-      return { code: j.code, message: j.message, data: (j.data ?? []).map((t: any) => ({ market: t.market, last: t.last })) };
     }
     if (host === "p2p.binance.com" && path.endsWith("/adv/search")) {
       return {
@@ -129,7 +125,7 @@ Deno.serve({ port: Number(Deno.env.get("PORT") ?? 8000), hostname: Deno.env.get(
 
   const headers = new Headers();
   for (const [h, v] of req.headers) {
-    if (h === "x-mbx-apikey" || h === "content-type" || h.startsWith("kc-api-") || h.startsWith("x-coinex-")) headers.set(h, v);
+    if (h === "x-mbx-apikey" || h === "content-type" || h.startsWith("kc-api-")) headers.set(h, v);
   }
   if (host === "p2p.binance.com") {
     headers.set("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36");
@@ -138,7 +134,7 @@ Deno.serve({ port: Number(Deno.env.get("PORT") ?? 8000), hostname: Deno.env.get(
   const hasBody = !["GET", "HEAD"].includes(req.method);
   const bodyText = hasBody ? await req.text() : "";
   const path = "/" + parts.slice(3).join("/");
-  const signed = headers.has("x-mbx-apikey") || headers.has("kc-api-key") || headers.has("x-coinex-key");
+  const signed = headers.has("x-mbx-apikey") || headers.has("kc-api-key");
   const key = signed ? "" : `${req.method} ${target} ${bodyText}`;
 
   const reply = (r: { status: number; body: string; ctype: string }) =>

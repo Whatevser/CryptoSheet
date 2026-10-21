@@ -1,6 +1,6 @@
 # CryptoSheet
 
-Live crypto portfolio in Google Sheets: **Binance, KuCoin, CoinEx** balances and prices,
+Live crypto portfolio in Google Sheets: **Binance, KuCoin** balances and prices,
 **Binance P2P** USDT/UAH offers, and **UAH** exchange rates, as plain spreadsheet formulas.
 
 ```
@@ -111,7 +111,6 @@ there.
    Relay OK. Proxies working: 2/2 (exit IP {"ip":"194.x.x.x"})
    Binance: OK, 7 assets
    KuCoin: OK, 3 assets
-   CoinEx: no keys
    ```
 
 **Saving also installs the auto-refresh trigger.** It removes every other trigger in the project,
@@ -123,7 +122,6 @@ including leftovers from the old Binance add-on.
 |---|---|---|---|
 | Binance | API Management | *Enable Reading* only, IP access **unrestricted** | API Key, API Secret |
 | KuCoin | API Management | *General* only | API Key, API Secret, Passphrase (you choose it when creating) |
-| CoinEx | API | read-only | Access ID, Secret Key |
 
 ### The settings sidebar
 
@@ -148,7 +146,6 @@ pasted "smart quotes" break formulas.
 ```
 =BINANCE("portfolio")
 =KUCOIN("portfolio")
-=COINEX("portfolio")
 ```
 
 → **Asset | Total | Price USDT | Value USDT**, all wallets summed, sorted by value.
@@ -157,7 +154,6 @@ pasted "smart quotes" break formulas.
 |---|---|
 | Binance | spot, funding, simple earn (flexible + locked), cross margin, USDⓈ-M futures |
 | KuCoin | main, trade, trade_hf, margin |
-| CoinEx | spot, financial (earn), futures |
 
 A wallet your key can't read is skipped silently. A coin without a USDT pair is priced via BTC;
 if there's still no price, that cell is blank.
@@ -169,7 +165,7 @@ if there's still no price, that cell is blank.
 **Also available:**
 ```
 =BINANCE("balances")        Asset | Total
-=BINANCE("prices")          Symbol | Price   (ADAUSDT format, same for all 3)
+=BINANCE("prices")          Symbol | Price   (ADAUSDT format, same for both)
 =VLOOKUP("SOLUSDT"; KUCOIN("prices"; "headers: false"); 2; 0)     one price
 ```
 
@@ -215,18 +211,12 @@ change.
 ```
 Up to 6 h delay without a free CryptoID API key (`&key=…`).
 
-**RTM last trade on CoinEx:** RTM is missing from CoinEx's price list because it has no 24 h
-volume, so read it from the order book instead:
-```
-=VALUE(SUBSTITUTE(REGEXEXTRACT(IMPORTDATA("https://api.coinex.com/v2/spot/depth?market=RTMUSDT&limit=5&interval=0"; "~"); """last"":""([^""]+)"""); "."; ","))
-```
-
 ---
 
 ## How refresh works
 
 Sheets caches custom-function results until their arguments change. The `refresh` trigger forces a
-recalculation by rewriting every `BINANCE(` ⇄ `BINANCER(` (and `KUCOIN`, `COINEX`, `UAH`,
+recalculation by rewriting every `BINANCE(` ⇄ `BINANCER(` (and `KUCOIN`, `UAH`,
 `BINANCE_P2P`). The `…R` twins are identical functions.
 
 - Don't type the `…R` names yourself.
@@ -271,7 +261,7 @@ sudo rm -rf /opt/relay /etc/systemd/system/crypto-relay.service
 | `via relay: HTTP 502 relay error` | Proxy unreachable or wrong login. Run **Test connection**; check `journalctl -u crypto-relay` |
 | `via relay: HTTP 503 USAGE_EXCEEDED` | Deno Deploy free quota is used up. Self-host (step 1) or wait for the monthly reset |
 | Test connection says `ok` instead of JSON, or `Relay: HTTP 200` with nothing | Wrong **token**. The relay answers `ok` to anything without the right token |
-| `Binance error -2015` · `KuCoin error 400005` · `CoinEx error 25` | Wrong key/secret/passphrase, or an IP restriction on the key → unrestricted + read-only |
+| `Binance error -2015` · `KuCoin error 400005` | Wrong key/secret/passphrase, or an IP restriction on the key → unrestricted + read-only |
 | `host not allowed` | Host missing from `HOSTS` in `relay.ts` |
 | `No ads match these filters` | Loosen the P2P filters; check names with `=BINANCE_P2P_METHODS()` |
 | Numbers never update | Crypto → Settings → **Save** (reinstalls the trigger). Apps Script → **Triggers** should show exactly one `refresh` |

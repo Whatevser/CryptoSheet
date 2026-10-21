@@ -1,5 +1,5 @@
 /**
- * Crypto portfolio for Google Sheets — Binance, KuCoin, CoinEx.
+ * Crypto portfolio for Google Sheets — Binance, KuCoin.
  * Everything goes through your relay (Deno Deploy -> your proxy -> exchange).
  *
  * SETUP (full guide: https://github.com/Whatevser/CryptoSheet#readme)
@@ -8,7 +8,7 @@
  *      Nothing secret lives in this file — everything is stored in your Google user properties.
  *
  * FORMULAS (French locale: ; as separator)
- *   =BINANCE("portfolio")  =KUCOIN("portfolio")  =COINEX("portfolio")
+ *   =BINANCE("portfolio")  =KUCOIN("portfolio")
  *        -> Asset | Total | Price USDT | Value USDT   (all wallets summed, sorted by value)
  *   =BINANCE("balances")   -> Asset | Total
  *   =BINANCE("prices")     -> Symbol | Price (ADAUSDT format)
@@ -59,14 +59,6 @@ function BINANCE(operation, opts) { return table_(EX.binance, operation, opts); 
 function KUCOIN(operation, opts) { return table_(EX.kucoin, operation, opts); }
 
 /**
- * CoinEx: "portfolio", "balances" or "prices".
- * @param {string} operation "portfolio", "balances" or "prices"
- * @param {string} opts Optional, e.g. "headers: false"
- * @customfunction
- */
-function COINEX(operation, opts) { return table_(EX.coinex, operation, opts); }
-
-/**
  * Price of 1 unit in UAH. Fiat (USD, EUR...) = NBU official rate; crypto (USDT, BTC...) = WhiteBIT live.
  * @param {string} code e.g. "USD", "EUR", "USDT"
  * @customfunction
@@ -98,7 +90,6 @@ function BINANCE_P2P_METHODS(fiat) { return p2pMethods_(fiat); }
 // Refresh twins (the auto-refresh toggles NAME( <-> NAMER( to force recalculation). Don't use directly.
 function BINANCER(o, p) { return BINANCE(o, p); }
 function KUCOINR(o, p) { return KUCOIN(o, p); }
-function COINEXR(o, p) { return COINEX(o, p); }
 function UAHR(c) { return UAH(c); }
 function BINANCE_P2PR(a, b, c, d) { return BINANCE_P2P(a, b, c, d); }
 
@@ -188,47 +179,6 @@ const EX = {
       for (const x of this.request("/api/v1/market/allTickers", false).ticker || []) {
         const v = parseFloat(x.last);
         if (v) p[x.symbol.replace("-", "")] = v;
-      }
-      return p;
-    },
-  },
-
-  // ---------- CoinEx ----------
-  coinex: {
-    name: "CoinEx",
-    keys: [["Access ID", "CX_API_KEY"], ["Secret Key", "CX_API_SECRET"]],
-
-    request(path, signed) {
-      const headers = {};
-      if (signed) {
-        const [key, secret] = keys_(this);
-        const ts = String(Date.now());
-        headers["X-COINEX-KEY"] = key;
-        headers["X-COINEX-TIMESTAMP"] = ts;
-        headers["X-COINEX-SIGN"] = hex_(Utilities.computeHmacSha256Signature("GET" + path + ts, secret));
-      }
-      const body = fetch_(this.name, "api.coinex.com", path, headers);
-      if (body.code !== 0) throw new Error("CoinEx error " + body.code + ": " + (body.message || ""));
-      return body.data;
-    },
-
-    balances() {
-      const t = {};
-      for (const b of this.request("/v2/assets/spot/balance", true)) add_(t, b.ccy, +b.available + +b.frozen);
-      optional_(this.name, "financial", () => {
-        for (const b of this.request("/v2/assets/financial/balance", true)) add_(t, b.ccy, +b.available + +b.frozen);
-      });
-      optional_(this.name, "futures", () => {
-        for (const b of this.request("/v2/assets/futures/balance", true)) add_(t, b.ccy, +b.available + +b.frozen + +b.margin);
-      });
-      return rows_(t);
-    },
-
-    prices() {
-      const p = {};
-      for (const x of this.request("/v2/spot/ticker", false)) {
-        const v = parseFloat(x.last);
-        if (v) p[x.market] = v;
       }
       return p;
     },
@@ -601,7 +551,7 @@ function test(){status("Testing… (up to 30 s)");
 load();
 </script></body></html>`;
 
-/** Forces BINANCE/KUCOIN/COINEX/UAH/BINANCE_P2P formulas to recalculate. */
+/** Forces BINANCE/KUCOIN/UAH/BINANCE_P2P formulas to recalculate. */
 function refresh() {
   const cache = CacheService.getScriptCache();
   Object.values(EX).forEach((ex) => cache.remove("PRICES_" + ex.name));
@@ -612,8 +562,8 @@ function refresh() {
     const f = range.getFormulas();
     for (let r = 0; r < f.length; r++) {
       for (let c = 0; c < f[r].length; c++) {
-        if (!f[r][c] || !/(BINANCE_P2P|BINANCE|KUCOIN|COINEX|UAH)R?\s*\(/i.test(f[r][c])) continue;
-        const nf = f[r][c].replace(/\b(BINANCE_P2P|BINANCE|KUCOIN|COINEX|UAH)(R?)(\s*\()/gi, (m, n, rr, p) => n + (rr ? "" : "R") + p);
+        if (!f[r][c] || !/(BINANCE_P2P|BINANCE|KUCOIN|UAH)R?\s*\(/i.test(f[r][c])) continue;
+        const nf = f[r][c].replace(/\b(BINANCE_P2P|BINANCE|KUCOIN|UAH)(R?)(\s*\()/gi, (m, n, rr, p) => n + (rr ? "" : "R") + p);
         range.getCell(r + 1, c + 1).setFormula(nf);
       }
     }
